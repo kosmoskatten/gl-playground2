@@ -1,13 +1,16 @@
 module Main where
 
-import           Control.Monad    (when)
-import           Data.Maybe       (fromJust, isNothing)
-import qualified Graphics.GL      as GL
-import           Graphics.UI.GLFW (OpenGLProfile (..), StickyKeysInputMode (..),
-                                   WindowHint (..))
-import qualified Graphics.UI.GLFW as GLFW
-import           RenderLoop       (simpleRenderLoop)
-import           System.Exit      (exitFailure)
+import           Control.Monad             (when)
+import           Data.Maybe                (fromJust, isNothing)
+import           Graphics.Rendering.OpenGL (ClearBuffer (..), Color4 (..),
+                                            GLfloat, ($=))
+import qualified Graphics.Rendering.OpenGL as GL
+import           Graphics.UI.GLFW          (OpenGLProfile (..),
+                                            StickyKeysInputMode (..),
+                                            WindowHint (..))
+import qualified Graphics.UI.GLFW          as GLFW
+import           RenderLoop                (simpleRenderLoop)
+import           System.Exit               (exitFailure)
 
 main :: IO ()
 main = do
@@ -33,9 +36,9 @@ main = do
 
     GLFW.setStickyKeysInputMode window StickyKeysInputMode'Enabled
 
-    GL.glClearColor 0 0 0.4 0
+    GL.clearColor $= Color4 0 0 0.4 (0 :: GLfloat)
 
     simpleRenderLoop window $ \_ ->
-        GL.glClear GL.GL_COLOR_BUFFER_BIT
+        GL.clear [ColorBuffer]
 
     GLFW.terminate
