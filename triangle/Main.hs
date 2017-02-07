@@ -1,15 +1,17 @@
 module Main where
 
 import           Control.Monad             (when)
+import           Data.Either               (isLeft)
 import           Data.Maybe                (fromJust, isNothing)
 import           Graphics.Rendering.OpenGL (ClearBuffer (..), Color4 (..),
-                                            GLfloat, ($=))
+                                            GLfloat, ShaderType (..), ($=))
 import qualified Graphics.Rendering.OpenGL as GL
 import           Graphics.UI.GLFW          (OpenGLProfile (..),
                                             StickyKeysInputMode (..),
                                             WindowHint (..))
 import qualified Graphics.UI.GLFW          as GLFW
 import           RenderLoop                (simpleRenderLoop)
+import           ShaderLoader              (loadShaders)
 import           System.Exit               (exitFailure)
 
 main :: IO ()
@@ -33,6 +35,15 @@ main = do
 
     let window = fromJust mWindow
     GLFW.makeContextCurrent (Just window)
+
+    result <- loadShaders [ (VertexShader, "triangle/triangle.vert")
+                          , (FragmentShader, "triangle/triangle.frag")
+                          ]
+
+    when (isLeft result) $ do
+        let Left err = result
+        putStrLn err
+        exitFailure
 
     GLFW.setStickyKeysInputMode window StickyKeysInputMode'Enabled
 
