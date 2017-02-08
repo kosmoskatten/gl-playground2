@@ -27,9 +27,9 @@ bufferOffset = plusPtr nullPtr
 
 vertices :: [Vertex3 GLfloat]
 vertices =
-    [ Vertex3 (-0.5)   0.5  0.0
-    , Vertex3 (-0.5) (-0.5) 0.0
-    , Vertex3   0.5    0.5  0.0
+    [ Vertex3 (-1.0)   1.0  0.0
+    , Vertex3 (-1.0) (-1.0) 0.0
+    , Vertex3   1.0    1.0  0.0
     ]
 
 initBuffers :: [Vertex3 GLfloat] -> IO VertexArrayObject
@@ -52,6 +52,8 @@ initBuffers verts = do
     GL.vertexAttribPointer position $=
         (ToFloat, VertexArrayDescriptor 3 Float 0 (bufferOffset 0) )
     GL.vertexAttribArray position $= Disabled
+
+    GL.bindVertexArrayObject $= Nothing
 
     return vao
 
@@ -77,6 +79,7 @@ main = do
 
     let window = fromJust mWindow
     GLFW.makeContextCurrent (Just window)
+    GLFW.setStickyKeysInputMode window StickyKeysInputMode'Enabled
 
     result <- loadShaders [ (VertexShader, "triangle/triangle.vert")
                           , (FragmentShader, "triangle/triangle.frag")
@@ -87,18 +90,18 @@ main = do
         putStrLn err
         exitFailure
 
-    GLFW.setStickyKeysInputMode window StickyKeysInputMode'Enabled
 
     GL.clearColor $= Color4 0 0 0.4 (0 :: GLfloat)
 
-    vao <- initBuffers vertices
 
     let Right program = result
+    vao <- initBuffers vertices
+
     simpleRenderLoop window $ \_ -> do
         GL.clear [ColorBuffer]
+        GL.currentProgram $= Just program
 
         GL.bindVertexArrayObject $= Just vao
-        GL.currentProgram $= Just program
         GL.drawArrays Triangles 0 3
 
         GL.bindVertexArrayObject $= Nothing
