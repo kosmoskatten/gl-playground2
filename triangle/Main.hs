@@ -3,8 +3,16 @@ module Main where
 import           Control.Monad             (when)
 import           Data.Either               (isLeft)
 import           Data.Maybe                (fromJust, isNothing)
-import           Graphics.Rendering.OpenGL (ClearBuffer (..), Color4 (..),
-                                            GLfloat, ShaderType (..), ($=))
+import           Foreign
+import           Graphics.Rendering.OpenGL (AttribLocation (..),
+                                            BufferTarget (..), BufferUsage (..),
+                                            Capability (..), ClearBuffer (..),
+                                            Color4 (..), DataType (..), GLfloat,
+                                            IntegerHandling (..),
+                                            PrimitiveMode (..), ShaderType (..),
+                                            Vertex3 (..),
+                                            VertexArrayDescriptor (..),
+                                            VertexArrayObject, ($=))
 import qualified Graphics.Rendering.OpenGL as GL
 import           Graphics.UI.GLFW          (OpenGLProfile (..),
                                             StickyKeysInputMode (..),
@@ -13,6 +21,40 @@ import qualified Graphics.UI.GLFW          as GLFW
 import           RenderLoop                (simpleRenderLoop)
 import           ShaderLoader              (loadShaders)
 import           System.Exit               (exitFailure)
+
+bufferOffset :: Int -> Ptr Int
+bufferOffset = plusPtr nullPtr
+
+vertices :: [Vertex3 GLfloat]
+vertices =
+    [ Vertex3 (-0.5)   0.5  0.0
+    , Vertex3 (-0.5) (-0.5) 0.0
+    , Vertex3   0.5    0.5  0.0
+    ]
+
+initBuffers :: [Vertex3 GLfloat] -> IO VertexArrayObject
+initBuffers verts = do
+    vao <- GL.genObjectName
+    GL.bindVertexArrayObject $= Just vao
+
+    vbo <- GL.genObjectName
+    GL.bindBuffer ArrayBuffer $= Just vbo
+
+    let vertexSize = sizeOf (head verts)
+        numVertices = length verts
+
+    withArray verts $ \ptr ->
+        GL.bufferData ArrayBuffer
+            $= (fromIntegral(vertexSize * numVertices), ptr, StaticDraw)
+
+    let position = AttribLocation 0
+    GL.vertexAttribArray position $= Enabled
+    GL.vertexAttribPointer position $=
+        (ToFloat, VertexArrayDescriptor 3 Float 0 (bufferOffset 0) )
+    GL.vertexAttribArray position $= Disabled
+
+    return vao
+
 
 main :: IO ()
 main = do
@@ -49,7 +91,16 @@ main = do
 
     GL.clearColor $= Color4 0 0 0.4 (0 :: GLfloat)
 
-    simpleRenderLoop window $ \_ ->
+    vao <- initBuffers vertices
+
+    let Right program = result
+    simpleRenderLoop window $ \_ -> do
         GL.clear [ColorBuffer]
+
+        GL.bindVertexArrayObject $= Just vao
+        GL.currentProgram $= Just program
+        GL.drawArrays Triangles 0 3
+
+        GL.bindVertexArrayObject $= Nothing
 
     GLFW.terminate
