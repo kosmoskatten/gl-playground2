@@ -25,39 +25,6 @@ import           System.Exit               (exitFailure)
 bufferOffset :: Int -> Ptr Int
 bufferOffset = plusPtr nullPtr
 
-vertices :: [Vertex3 GLfloat]
-vertices =
-    [ Vertex3 (-1.0)   1.0  0.0
-    , Vertex3 (-1.0) (-1.0) 0.0
-    , Vertex3   1.0    1.0  0.0
-    ]
-
-initBuffers :: [Vertex3 GLfloat] -> IO VertexArrayObject
-initBuffers verts = do
-    vao <- GL.genObjectName
-    GL.bindVertexArrayObject $= Just vao
-
-    vbo <- GL.genObjectName
-    GL.bindBuffer ArrayBuffer $= Just vbo
-
-    let vertexSize = sizeOf (head verts)
-        numVertices = length verts
-
-    withArray verts $ \ptr ->
-        GL.bufferData ArrayBuffer
-            $= (fromIntegral(vertexSize * numVertices), ptr, StaticDraw)
-
-    let position = AttribLocation 0
-    GL.vertexAttribArray position $= Enabled
-    GL.vertexAttribPointer position $=
-        (ToFloat, VertexArrayDescriptor 3 Float 0 (bufferOffset 0) )
-    GL.vertexAttribArray position $= Disabled
-
-    GL.bindVertexArrayObject $= Nothing
-
-    return vao
-
-
 main :: IO ()
 main = do
     initSuccess <- GLFW.init
@@ -81,29 +48,45 @@ main = do
     GLFW.makeContextCurrent (Just window)
     GLFW.setStickyKeysInputMode window StickyKeysInputMode'Enabled
 
-    result <- loadShaders [ (VertexShader, "triangle/triangle.vert")
-                          , (FragmentShader, "triangle/triangle.frag")
-                          ]
-
-    when (isLeft result) $ do
-        let Left err = result
-        putStrLn err
-        exitFailure
-
 
     GL.clearColor $= Color4 0 0 0.4 (0 :: GLfloat)
 
+    vao <- GL.genObjectName
+    GL.bindVertexArrayObject $= Just vao
 
-    let Right program = result
-    vao <- initBuffers vertices
+    eProgram <- loadShaders [(VertexShader, "triangle/triangle.vert")
+                            , (FragmentShader, "triangle/triangle.frag")]
+    when (isLeft eProgram) $ do
+        putStrLn "Cannot load shaders"
+        GLFW.terminate
+        exitFailure
+
+    let Right program = eProgram
+
+    let triangle = [ Vertex3 (-1) (-1) 0
+                   , Vertex3 1 (-1) 0
+                   , Vertex3 0 1 0
+                   ] :: [Vertex3 GLfloat]
+        numVertices = length triangle
+        vertexSize  = sizeOf (head triangle)
+
+    vbo <- GL.genObjectName
+    GL.bindBuffer ArrayBuffer $= Just vbo
+    withArray triangle $ \ptr -> do
+        let size = fromIntegral (numVertices * vertexSize)
+        GL.bufferData ArrayBuffer $= (size, ptr, StaticDraw)
 
     simpleRenderLoop window $ \_ -> do
         GL.clear [ColorBuffer]
+
         GL.currentProgram $= Just program
 
-        GL.bindVertexArrayObject $= Just vao
+        let position = AttribLocation 0
+            firstIndex = 0
+        GL.vertexAttribArray position $= Enabled
+        GL.vertexAttribPointer position $=
+            (ToFloat, VertexArrayDescriptor 3 Float 0 (bufferOffset (firstIndex * vertexSize)))
         GL.drawArrays Triangles 0 3
-
-        GL.bindVertexArrayObject $= Nothing
+        GL.vertexAttribArray position $= Disabled
 
     GLFW.terminate
