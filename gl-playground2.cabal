@@ -24,4 +24,5 @@ executable triangle
                      , GLFW-b
                      , linear
                      , OpenGL
+                     , OpenGLRaw
   ghc-options:         -Wall
