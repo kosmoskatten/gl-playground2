@@ -19,6 +19,7 @@ executable triangle
   other-modules:       RenderLoop
                        ImageLoader
                        ShaderLoader
+                       Vertex
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                      , bytestring

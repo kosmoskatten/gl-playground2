@@ -11,6 +11,7 @@ import           Graphics.Rendering.OpenGL (AttribLocation (..),
                                             Color4 (..), DataType (..), GLfloat,
                                             IntegerHandling (..),
                                             PrimitiveMode (..), ShaderType (..),
+                                            TexCoord2 (..),
                                             UniformLocation (..), Vertex3 (..),
                                             VertexArrayDescriptor (..),
                                             VertexArrayObject, get, ($=))
@@ -23,18 +24,40 @@ import           Linear
 import           RenderLoop                (simpleRenderLoop)
 import           ShaderLoader              (loadShaders)
 import           System.Exit               (exitFailure)
+import           Vertex
 
 bufferOffset :: Int -> Ptr Int
 bufferOffset = plusPtr nullPtr
 
-vertices :: [Vertex3 GLfloat]
+vertices :: [VertexTexture GLfloat]
 vertices =
-    [ Vertex3   0.0    0.5  0.0
-    , Vertex3 (-0.5) (-0.5) 0.0
-    , Vertex3   0.5  (-0.5) 0.0
+    [ VertexTexture -- Top right
+        { position = Vertex3   0.5    0.5  0.0
+        , texCoord = TexCoord2 1 1
+        }
+    , VertexTexture -- Top left
+        { position = Vertex3 (-0.5)   0.5  0.0
+        , texCoord = TexCoord2 0 1
+        }
+    , VertexTexture -- Bottom left
+        { position = Vertex3 (-0.5) (-0.5) 0.0
+        , texCoord = TexCoord2 0 0
+        }
+    , VertexTexture -- Top right
+        { position = Vertex3   0.5    0.5  0.0
+        , texCoord = TexCoord2 1 1
+        }
+    , VertexTexture -- Bottom left
+        { position = Vertex3 (-0.5) (-0.5) 0.0
+        , texCoord = TexCoord2 0 0
+        }
+    , VertexTexture -- Bottom right
+        { position = Vertex3   0.5  (-0.5) 0.0
+        , texCoord = TexCoord2 1 0
+        }
     ]
 
-initVAO :: [Vertex3 GLfloat] -> IO VertexArrayObject
+initVAO :: [VertexTexture GLfloat] -> IO VertexArrayObject
 initVAO verts = do
     vao <- GL.genObjectName
     GL.bindVertexArrayObject $= Just vao
@@ -45,13 +68,22 @@ initVAO verts = do
         let size = fromIntegral (length verts * sizeOf (head verts))
         GL.bufferData ArrayBuffer $= (size, ptr, StaticDraw)
 
-    let position = AttribLocation 0
-    GL.vertexAttribArray position $= Enabled
-    GL.vertexAttribPointer position $=
-            (ToFloat, VertexArrayDescriptor 3 Float 0 (bufferOffset 0))
+    let record       = head verts
+        positionAttr = AttribLocation 0
+        texCoordAttr = AttribLocation 1
+    GL.vertexAttribArray positionAttr $= Enabled
+    GL.vertexAttribPointer positionAttr $=
+        (ToFloat,
+            VertexArrayDescriptor 3 Float (fromIntegral $ sizeOf record) (bufferOffset 0))
+
+    GL.vertexAttribArray texCoordAttr $= Enabled
+    GL.vertexAttribPointer texCoordAttr $=
+        (ToFloat,
+            VertexArrayDescriptor 2 Float (fromIntegral $ sizeOf record) (bufferOffset $ sizeOf (position record)))
 
     GL.bindVertexArrayObject $= Nothing
     return vao
+
 
 main :: IO ()
 main = do
@@ -92,7 +124,7 @@ main = do
     mvpLoc <- get $ GL.uniformLocation program "mvp"
     let persp = perspective 45.0 (1024.0 / 768.0) 0.01 1000
         eye   = lookAt (V3 0 0 5) (V3 0 0 0) (V3 0 1 0)
-        model = makeRotate (V3 0 1 0) (pi / 4)
+        model = makeRotate (V3 0 1 0) 0
         mvp   = persp !*! eye !*! model
 
     colLoc <- get $ GL.uniformLocation program "triColor"
@@ -105,7 +137,7 @@ main = do
         setMatrix4Uniform mvpLoc mvp
         setVector3Uniform colLoc triColor
         GL.bindVertexArrayObject $= Just vao
-        GL.drawArrays Triangles 0 3
+        GL.drawArrays Triangles 0 6
 
 
     GLFW.terminate
